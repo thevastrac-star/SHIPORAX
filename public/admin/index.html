@@ -279,6 +279,9 @@ select option{background:#12122A}
       <div class="avatar" id="avatar-initials">A</div>
     </div>
   </div>
+  <div id="demo-banner" style="background:linear-gradient(135deg,#7C3AED22,#2563EB22);border-bottom:1px solid #7C3AED40;padding:8px 28px;font-size:.8rem;color:#A78BFA;display:flex;align-items:center;gap:8px">
+    <span>🧪</span> <b>Demo Mode</b> — Showing sample data. All navigation, modals and actions work. Connect your backend to go live.
+  </div>
 
   <div id="content">
 
@@ -931,23 +934,116 @@ function showToast(msg, type='info') {
   setTimeout(() => { t.style.opacity='0'; setTimeout(()=>t.remove(),400); }, 5000);
 }
 
-window.onload = async () => {
-  if (!token) { window.location.href = 'login.html'; return; }
+// ─── DEMO MODE — works without a backend or auth token ───────────────────────
+const DEMO_MODE = true;
 
-  try {
-    const res = await fetch(API + '/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
-    const data = await res.json();
-    if (!data.success || data.user.role !== 'admin') {
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_user');
-      showToast('Access denied — redirecting to login', 'error');
-      setTimeout(() => { window.location.href = 'login.html'; }, 1500);
-      return;
+const DEMO_DATA = {
+  dashboard: { success:true, stats:{ totalOrders:1842, deliveredCount:1204, rtoCount:93, ndrCount:47, totalUsers:318, codPending:29800, totalRecharge:842000, openTickets:12, pendingKYC:5 }, recentRecharges:[
+    { user:{name:'Rahul Sharma',email:'rahul@ex.com'}, amount:5000, createdAt: new Date() },
+    { user:{name:'Priya Mehta',email:'priya@ex.com'}, amount:2000, createdAt: new Date(Date.now()-86400000) },
+    { user:{name:'Amit Jain',email:'amit@ex.com'}, amount:10000, createdAt: new Date(Date.now()-172800000) }
+  ]},
+  users: { success:true, users:[
+    { _id:'u1', name:'Rahul Sharma', email:'rahul@ex.com', role:'client', walletBalance:3200, kycStatus:'approved', createdAt: new Date() },
+    { _id:'u2', name:'Priya Mehta', email:'priya@ex.com', role:'client', walletBalance:800, kycStatus:'pending', createdAt: new Date() },
+    { _id:'u3', name:'Amit Jain', email:'amit@ex.com', role:'client', walletBalance:15000, kycStatus:'approved', createdAt: new Date() },
+    { _id:'u4', name:'Sunita Verma', email:'sunita@ex.com', role:'client', walletBalance:0, kycStatus:'rejected', createdAt: new Date() },
+  ], total:4 },
+  kyc: { success:true, requests:[] },
+  orders: { success:true, orders:[
+    { _id:'o1', orderId:'ORD-001', user:{name:'Rahul Sharma',email:'rahul@ex.com'}, recipient:{name:'Customer A',phone:'9876543210',pincode:'110001'}, paymentMode:'cod', codAmount:500, status:'delivered', assignedCourier:{name:'Delhivery'}, awbNumber:'DL123456', createdAt: new Date() },
+    { _id:'o2', orderId:'ORD-002', user:{name:'Priya Mehta',email:'priya@ex.com'}, recipient:{name:'Customer B',phone:'9876543211',pincode:'400001'}, paymentMode:'prepaid', codAmount:0, status:'shipped', assignedCourier:{name:'BlueDart'}, awbNumber:'BD789012', createdAt: new Date() },
+    { _id:'o3', orderId:'ORD-003', user:{name:'Amit Jain',email:'amit@ex.com'}, recipient:{name:'Customer C',phone:'9876543212',pincode:'600001'}, paymentMode:'cod', codAmount:1200, status:'ndr', assignedCourier:{name:'Xpressbees'}, awbNumber:'XB345678', createdAt: new Date() },
+  ], total:3, page:1 },
+  couriers: { success:true, couriers:[
+    { _id:'c1', name:'Delhivery', code:'DL', supportsCOD:true, isActive:true, logoUrl:'', apiConfig:{} },
+    { _id:'c2', name:'BlueDart', code:'BD', supportsCOD:false, isActive:true, logoUrl:'', apiConfig:{} },
+    { _id:'c3', name:'Xpressbees', code:'XB', supportsCOD:true, isActive:false, logoUrl:'', apiConfig:{} },
+  ]},
+  recharges: { success:true, recharges:[
+    { user:{name:'Rahul Sharma',email:'rahul@ex.com'}, amount:5000, status:'completed', paymentGateway:'razorpay', createdAt: new Date() },
+    { user:{name:'Amit Jain',email:'amit@ex.com'}, amount:10000, status:'completed', paymentGateway:'manual', createdAt: new Date(Date.now()-86400000) },
+    { user:{name:'Priya Mehta',email:'priya@ex.com'}, amount:2000, status:'pending', paymentGateway:'payu', createdAt: new Date(Date.now()-172800000) },
+  ], totalAmount:17000, total:3 },
+  cod: { success:true, records:[
+    { _id:'cod1', order:{orderId:'ORD-001'}, user:{name:'Rahul Sharma'}, awbNumber:'DL123456', expectedAmount:500, receivedAmount:0, status:'pending' },
+    { _id:'cod2', order:{orderId:'ORD-003'}, user:{name:'Amit Jain'}, awbNumber:'XB345678', expectedAmount:1200, receivedAmount:1200, status:'settled' },
+  ], summary:{ totalExpected:1700, totalReceived:1200 }},
+  ndr: { success:true, ndrs:[
+    { _id:'n1', order:{orderId:'ORD-003'}, user:{name:'Amit Jain'}, awbNumber:'XB345678', reason:'Customer not available', attempts:2, status:'pending' },
+  ]},
+  tickets: { success:true, tickets:[
+    { _id:'t1', ticketId:'TKT-001', user:{name:'Rahul Sharma'}, subject:'Payment not credited', category:'billing', priority:'high', status:'open', updatedAt: new Date() },
+    { _id:'t2', ticketId:'TKT-002', user:{name:'Priya Mehta'}, subject:'Order stuck in transit', category:'shipping', priority:'medium', status:'in_progress', updatedAt: new Date() },
+  ]},
+  logs: { success:true, logs:[
+    { createdAt: new Date(), actor:{name:'Admin'}, actorRole:'admin', action:'LOGIN', entity:'auth', ip:'127.0.0.1' },
+    { createdAt: new Date(Date.now()-3600000), actor:{name:'Admin'}, actorRole:'admin', action:'UPDATE_ORDER', entity:'order', entityId:'ORD-001', ip:'127.0.0.1' },
+  ]},
+  settings: { success:true, settings:[] },
+  rates: { success:true, rates:[] },
+  'couriers/rates/clients-list': { success:true, clients:[] },
+};
+
+// Patch api() in demo mode to return mock data
+const _realFetch = window.fetch.bind(window);
+if (DEMO_MODE) {
+  window.fetch = async (url, opts) => {
+    const path = url.replace(API, '').replace(/\?.*$/, '').replace(/^\//, '');
+    // Map paths to demo keys
+    const keyMap = {
+      'analytics/admin/dashboard': 'dashboard',
+      'users': 'users',
+      'kyc/admin/pending': 'kyc',
+      'orders': 'orders',
+      'couriers': 'couriers',
+      'wallet/admin/recharges': 'recharges',
+      'cod': 'cod',
+      'ndr': 'ndr',
+      'tickets': 'tickets',
+      'users/logs/activity': 'logs',
+      'settings': 'settings',
+      'couriers/rates/all': 'rates',
+      'couriers/rates/clients-list': 'couriers/rates/clients-list',
+      'auth/me': 'auth/me',
+    };
+    const key = keyMap[path] || path;
+    if (key === 'auth/me') {
+      return { ok:true, status:200, json: async () => ({ success:true, user:{ name:'Demo Admin', role:'admin', email:'admin@demo.com' } }) };
     }
-    currentUser = data.user;
-    localStorage.setItem('admin_user', JSON.stringify(data.user));
-  } catch(e) {
-    showToast('⚠️ Cannot reach backend. Try refreshing in 30 seconds.', 'warning');
+    if (DEMO_DATA[key]) {
+      return { ok:true, status:200, json: async () => DEMO_DATA[key] };
+    }
+    // For write operations (POST/PATCH/DELETE) return success
+    if (opts?.method && opts.method !== 'GET') {
+      return { ok:true, status:200, json: async () => ({ success:true, message:'Demo mode — changes not persisted' }) };
+    }
+    return { ok:true, status:200, json: async () => ({ success:false, message:'Demo: endpoint not mocked: ' + path }) };
+  };
+}
+
+window.onload = async () => {
+  // In demo mode, skip real auth entirely
+  if (DEMO_MODE) {
+    currentUser = { name:'Demo Admin', role:'admin', email:'admin@demo.com' };
+    token = 'demo-token';
+  } else {
+    if (!token) { window.location.href = 'login.html'; return; }
+    try {
+      const res = await _realFetch(API + '/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
+      const data = await res.json();
+      if (!data.success || data.user.role !== 'admin') {
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_user');
+        showToast('Access denied — redirecting to login', 'error');
+        setTimeout(() => { window.location.href = 'login.html'; }, 1500);
+        return;
+      }
+      currentUser = data.user;
+      localStorage.setItem('admin_user', JSON.stringify(data.user));
+    } catch(e) {
+      showToast('⚠️ Cannot reach backend. Try refreshing in 30 seconds.', 'warning');
+    }
   }
   document.getElementById('admin-name').textContent = currentUser.name || 'Admin';
   document.getElementById('avatar-initials').textContent = (currentUser.name || 'A')[0].toUpperCase();
@@ -1032,7 +1128,7 @@ async function loadUsers() {
       <td><b>${u.name}</b><br/><small style="color:var(--text-muted)">${u.email}</small></td>
       <td>${u.email}</td>
       <td>₹${(u.walletBalance||0).toLocaleString()}</td>
-      <td><span class="status s-${u.kyc?.status||'not_submitted'}">${u.kyc?.status||'N/A'}</span></td>
+      <td><span class="status s-${u.kyc?.status||u.kycStatus||'not_submitted'}">${u.kyc?.status||u.kycStatus||'N/A'}</span></td>
       <td>${u.isBlocked?'<span class="status s-rejected">Blocked</span>':u.isFlagged?'<span class="status s-ndr">Flagged</span>':'<span class="status s-approved">Active</span>'}</td>
       <td>—</td>
       <td>
@@ -1113,7 +1209,6 @@ async function openKYCModal(uid) {
     }).join('');
   }
   openModal('kyc-modal');
-}
 }
 async function reviewKYC(status) {
   const uid = document.getElementById('kycm-id').value;
@@ -1837,13 +1932,8 @@ async function exportData(type) {
 function openModal(id) { document.getElementById(id).classList.add('open'); }
 function closeModal(id) { document.getElementById(id).classList.remove('open'); }
 function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-IN', { day:'2-digit', month:'short', year:'numeric' }) : '—'; }
-function toast(msg, type = 'success') {
-  const el = document.createElement('div');
-  el.className = `toast-item toast-${type}`;
-  el.textContent = msg;
-  document.getElementById('toast').appendChild(el);
-  setTimeout(() => el.remove(), 3000);
-}
+// Unified toast — delegates to showToast to avoid duplicate systems
+function toast(msg, type = 'success') { showToast(msg, type); }
 function renderPagination(containerId, current, total, onClick) {
   const el = document.getElementById(containerId);
   el.innerHTML = '';
@@ -1856,6 +1946,7 @@ function renderPagination(containerId, current, total, onClick) {
   }
 }
 function logout() {
+  if (DEMO_MODE) { showToast('Demo mode — logout disabled', 'info'); return; }
   localStorage.removeItem('admin_token');
   localStorage.removeItem('admin_user');
   window.location.href = 'login.html';
