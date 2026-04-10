@@ -31,7 +31,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
   width:248px;background:var(--sidebar);
   border-right:1px solid var(--sidebar-border);
   display:flex;flex-direction:column;
-  position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:100;
+  position:fixed;top:0;left:0;height:100vh;overflow-y:auto;z-index:20;
 }
 #sidebar .logo{
   padding:22px 20px;
@@ -71,12 +71,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
 
 /* ── TOPBAR ── */
 #topbar{
-  background:rgba(13,13,32,.8);
+  background:#0D0D20;
   border-bottom:1px solid var(--border);
   padding:14px 28px;
   display:flex;justify-content:space-between;align-items:center;
-  position:sticky;top:0;z-index:50;
-  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  position:sticky;top:0;z-index:10;
 }
 #topbar h2{font-size:1.1rem;font-weight:700;color:#fff;letter-spacing:-.02em}
 .topbar-right{display:flex;align-items:center;gap:14px}
@@ -92,7 +91,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);displ
   box-shadow:0 4px 12px #7C3AED50;
 }
 
-#content{padding:24px;flex:1}
+#content{padding:24px;flex:1;position:relative;z-index:1;isolation:isolate}
 
 /* ── STAT CARDS ── */
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:24px}
@@ -915,58 +914,25 @@ let currentUser = JSON.parse(localStorage.getItem('admin_user') || '{}');
 let walletTargetUserId = null;
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
-// ─── TOAST NOTIFICATIONS ─────────────────────────────────────────────────────
+// ─── TOAST NOTIFICATIONS (bottom-right, pointer-events:none so never blocks clicks) ──
 function showToast(msg, type='info') {
   let tc = document.getElementById('toast-container');
   if (!tc) {
     tc = document.createElement('div');
     tc.id = 'toast-container';
-    tc.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:360px';
+    tc.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:340px;pointer-events:none';
     document.body.appendChild(tc);
   }
-  const t = document.createElement('div');
   const colors = { info:'#3B82F6', success:'#10B981', error:'#EF4444', warning:'#F59E0B' };
-  t.style.cssText = `background:#1a1a35;border:1px solid ${colors[type]||colors.info}40;border-left:4px solid ${colors[type]||colors.info};color:#fff;padding:14px 18px;border-radius:12px;font-size:.88rem;box-shadow:0 8px 24px rgba(0,0,0,.5);animation:slideIn .3s ease;max-width:360px;word-break:break-word`;
+  const t = document.createElement('div');
+  t.style.cssText = `background:#1a1a35;border:1px solid ${colors[type]||colors.info}50;border-left:4px solid ${colors[type]||colors.info};color:#fff;padding:12px 16px;border-radius:10px;font-size:.85rem;box-shadow:0 8px 24px rgba(0,0,0,.5);pointer-events:none;word-break:break-word;opacity:1;transition:opacity .4s`;
   t.textContent = msg;
   tc.appendChild(t);
-  setTimeout(() => { t.style.opacity='0'; t.style.transition='opacity .4s'; setTimeout(()=>t.remove(),400); }, 4000);
-}
-
-// ─── BACKEND STATUS BAR ───────────────────────────────────────────────────────
-function showStatusBar(msg, type='loading') {
-  let bar = document.getElementById('status-bar');
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.id = 'status-bar';
-    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9998;padding:10px 20px;text-align:center;font-size:.85rem;font-weight:600;display:flex;align-items:center;justify-content:center;gap:10px;transition:all .3s';
-    document.body.appendChild(bar);
-  }
-  if (type === 'loading') {
-    bar.style.background = '#1e1e3a'; bar.style.color = '#A78BFA'; bar.style.borderBottom = '2px solid #7C3AED50';
-    bar.innerHTML = '<span style="display:inline-block;width:14px;height:14px;border:2px solid #7C3AED;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite"></span> ' + msg;
-  } else if (type === 'success') {
-    bar.style.background = '#0a2e1a'; bar.style.color = '#34d399'; bar.style.borderBottom = '2px solid #10B98150';
-    bar.innerHTML = '✅ ' + msg;
-    setTimeout(() => { if(bar) bar.style.display='none'; }, 3000);
-  } else if (type === 'error') {
-    bar.style.background = '#2a0a0a'; bar.style.color = '#f87171'; bar.style.borderBottom = '2px solid #EF444450';
-    bar.innerHTML = '❌ ' + msg;
-  }
-  bar.style.display = 'flex';
+  setTimeout(() => { t.style.opacity='0'; setTimeout(()=>t.remove(),400); }, 5000);
 }
 
 window.onload = async () => {
   if (!token) { window.location.href = 'login.html'; return; }
-
-  // Add spin keyframe
-  if (!document.getElementById('spin-style')) {
-    const s = document.createElement('style');
-    s.id = 'spin-style';
-    s.textContent = '@keyframes spin{to{transform:rotate(360deg)}} @keyframes slideIn{from{transform:translateX(40px);opacity:0}to{transform:translateX(0);opacity:1}}';
-    document.head.appendChild(s);
-  }
-
-  showStatusBar('Connecting to ShipoRAX backend... (first load may take 30s on free tier)', 'loading');
 
   try {
     const res = await fetch(API + '/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
@@ -974,16 +940,14 @@ window.onload = async () => {
     if (!data.success || data.user.role !== 'admin') {
       localStorage.removeItem('admin_token');
       localStorage.removeItem('admin_user');
-      showStatusBar('Access denied — redirecting to login', 'error');
+      showToast('Access denied — redirecting to login', 'error');
       setTimeout(() => { window.location.href = 'login.html'; }, 1500);
       return;
     }
     currentUser = data.user;
     localStorage.setItem('admin_user', JSON.stringify(data.user));
-    showStatusBar('Connected successfully!', 'success');
   } catch(e) {
-    showStatusBar('Backend unreachable — check your internet or try refreshing', 'error');
-    showToast('⚠️ Cannot reach backend. Data may not load. Try refreshing in 30 seconds.', 'warning');
+    showToast('⚠️ Cannot reach backend. Try refreshing in 30 seconds.', 'warning');
   }
   document.getElementById('admin-name').textContent = currentUser.name || 'Admin';
   document.getElementById('avatar-initials').textContent = (currentUser.name || 'A')[0].toUpperCase();
