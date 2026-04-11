@@ -18,10 +18,25 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// ─── STATIC FILES (uploads only) ─────────────────────────────────────────────
+// ─── STATIC FILES ─────────────────────────────────────────────────────────────
+// Create upload directories if they don't exist
 const uploadDirs = ['uploads/kyc', 'uploads/bulk'];
 uploadDirs.forEach(d => { if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true }); });
+
+// Serve uploaded files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Serve frontend HTML files from /public
+app.use(express.static(path.join(__dirname, 'public')));
+
+// ─── FRONTEND ROUTES ──────────────────────────────────────────────────────────
+// These let users visit clean URLs like /admin, /client, /login
+app.get('/',              (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+app.get('/login',         (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+app.get('/admin/login',   (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin', 'login.html')));
+app.get('/client/login',  (req, res) => res.sendFile(path.join(__dirname, 'public', 'client', 'login.html')));
+app.get('/admin',         (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin', 'index.html')));
+app.get('/client',        (req, res) => res.sendFile(path.join(__dirname, 'public', 'client', 'index.html')));
 
 // ─── API ROUTES ───────────────────────────────────────────────────────────────
 app.use('/api/auth',          require('./routes/auth'));
@@ -38,27 +53,8 @@ app.use('/api/settings',      require('./routes/settings'));
 app.use('/api/analytics',     require('./routes/analytics'));
 app.use('/api/notifications', require('./routes/notifications'));
 
-// ─── HEALTH CHECK ────────────────────────────────────────────────────────────
+// ─── HEALTH CHECK ─────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', time: new Date() }));
-
-// ─── ROOT — API INFO (no HTML, no login page) ────────────────────────────────
-app.get('/', (req, res) => {
-  res.json({
-    name: 'ShipoRAX API',
-    version: '1.0.0',
-    status: 'running',
-    endpoints: [
-      'POST /api/auth/login',
-      'POST /api/auth/register',
-      'GET  /api/auth/me',
-      'GET  /api/orders',
-      'GET  /api/wallet',
-      'GET  /api/users',
-      'GET  /api/analytics',
-      'GET  /health'
-    ]
-  });
-});
 
 // ─── 404 FALLBACK ─────────────────────────────────────────────────────────────
 app.use((req, res) => {
@@ -73,27 +69,37 @@ mongoose.connect(process.env.MONGO_URI, {
   useUnifiedTopology: true
 })
 .then(async () => {
-  console.log('MongoDB connected');
+  console.log('✅ MongoDB connected');
   await autoSeed();
 })
-.catch(err => console.error('MongoDB error:', err));
+.catch(err => console.error('❌ MongoDB error:', err));
 
-// ─── KEEP-ALIVE PING ─────────────────────────────────────────────────────────
+// ─── KEEP-ALIVE PING (prevent Render free tier sleep) ────────────────────────
 const BACKEND_URL = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 5000}`;
-const PING_INTERVAL = 7 * 60 * 1000;
+const PING_INTERVAL = 7 * 60 * 1000; // 7 minutes
+
 const keepAlive = () => {
   const url = new URL(BACKEND_URL + '/health');
   const lib = url.protocol === 'https:' ? https : http;
   lib.get(url.href, (res) => {
-    console.log(`[Keep-Alive] ${new Date().toISOString()} – ${res.statusCode}`);
-  }).on('error', (e) => console.warn('[Keep-Alive] failed:', e.message));
+    console.log(`[Keep-Alive] Pinged at ${new Date().toISOString()} – status ${res.statusCode}`);
+  }).on('error', (e) => {
+    console.warn('[Keep-Alive] Ping failed:', e.message);
+  });
 };
-setTimeout(() => { setInterval(keepAlive, PING_INTERVAL); }, 10000);
+
+setTimeout(() => {
+  setInterval(keepAlive, PING_INTERVAL);
+  console.log('🔔 Keep-alive pinger started (every 7 min)');
+}, 10000);
 
 // ─── START SERVER ─────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`ShipoRAX API running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🌐 Login    → ${BACKEND_URL}/login`);
+  console.log(`🛠  Admin   → ${BACKEND_URL}/admin`);
+  console.log(`👤 Client  → ${BACKEND_URL}/client`);
 });
 
 module.exports = app;
