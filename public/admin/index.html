@@ -671,10 +671,10 @@ textarea{resize:vertical;min-height:80px}
     <!-- ═══ SETTINGS ═══ -->
     <div class="page" id="page-settings">
       <div class="tabs">
-        <div class="tab active" onclick="switchTab('settings','payment')">Payment Gateway</div>
-        <div class="tab" onclick="switchTab('settings','courier_api')">Courier APIs</div>
-        <div class="tab" onclick="switchTab('settings','general')">General</div>
-        <div class="tab" onclick="switchTab('settings','notifications')">Notifications</div>
+        <div class="tab active" onclick="switchTab('settings','payment',this)">Payment Gateway</div>
+        <div class="tab" onclick="switchTab('settings','courier_api',this)">Courier APIs</div>
+        <div class="tab" onclick="switchTab('settings','general',this)">General</div>
+        <div class="tab" onclick="switchTab('settings','notifications',this)">Notifications</div>
       </div>
       <div class="card" id="settings-tab-payment">
         <div class="card-header"><span class="card-title">Payment Gateway Config</span></div>
@@ -900,7 +900,7 @@ textarea{resize:vertical;min-height:80px}
 <div id="toast"></div>
 
 <script>
-const API = '/api';  // Served from same server — works on localhost and Render
+const API = (window.__API_URL || '') + '/api';
 
 let token = localStorage.getItem('admin_token');
 let currentUser = JSON.parse(localStorage.getItem('admin_user') || '{}');
@@ -909,20 +909,26 @@ let walletTargetUserId = null;
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 window.onload = async () => {
   if (!token) { window.location.href = '/admin/login'; return; }
-  // Verify token is valid and user is actually admin
   try {
-    const res = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
-    const data = await res.json();
-    if (!data.success || data.user.role !== 'admin') {
-      localStorage.removeItem('admin_token');
-      localStorage.removeItem('admin_user');
-      window.location.href = '/admin/login';
-      return;
+    const apiBase = (window.__API_URL || '') + '/api';
+    const res = await fetch(apiBase + '/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.success && data.user) {
+        if (data.user.role !== 'admin') {
+          alert('This account does not have admin access. Please login with an admin account.');
+          localStorage.removeItem('admin_token');
+          localStorage.removeItem('admin_user');
+          window.location.href = '/admin/login';
+          return;
+        }
+        currentUser = data.user;
+        localStorage.setItem('admin_user', JSON.stringify(data.user));
+      }
     }
-    currentUser = data.user;
-    localStorage.setItem('admin_user', JSON.stringify(data.user));
+    // If fetch fails (network/CORS), still let them in — API calls will handle 401
   } catch(e) {
-    // Network error — let them in if token exists, API calls will fail with 401
+    console.warn('Auth check failed (network?):', e.message);
   }
   document.getElementById('admin-name').textContent = currentUser.name || 'Admin';
   document.getElementById('avatar-initials').textContent = (currentUser.name || 'A')[0].toUpperCase();
@@ -1727,10 +1733,10 @@ async function changeTicketStatus() {
 }
 
 // ─── SETTINGS ─────────────────────────────────────────────────────────────────
-function switchTab(page, tab) {
+function switchTab(page, tab, el) {
   document.querySelectorAll(`#page-${page} .tab`).forEach(t => t.classList.remove('active'));
   document.querySelectorAll(`#page-${page} [id^="settings-tab-"]`).forEach(t => t.style.display = 'none');
-  event.target.classList.add('active');
+  if(el) el.classList.add('active');
   document.getElementById(`settings-tab-${tab}`).style.display = 'block';
 }
 async function loadSettings() {

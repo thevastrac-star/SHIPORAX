@@ -115,7 +115,7 @@ input:focus{background:#fff;border-color:#5046E4;box-shadow:0 0 0 3px rgba(80,70
 </div>
 
 <script>
-const API='/api';
+const API=(window.__API_URL||'')+'/api';
 window.onload=()=>{
   const t=localStorage.getItem('admin_token');
   if(t) window.location.href='/admin';
@@ -132,7 +132,7 @@ async function doLogin(){
   const btn=document.getElementById('login-btn');
   btn.disabled=true;btn.textContent='⏳  Please wait...';
   try{
-    const r=await fetch(`${API}/auth/login`,{
+    const r=await fetch(API+'/auth/login',{
       method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({email,password})
     });

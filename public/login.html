@@ -231,7 +231,7 @@ input::placeholder{color:#B0B8CC}
 </div>
 
 <script>
-const API='/api';
+const API=(window.__API_URL||'')+'/api';
 
 window.onload=()=>{
   if(localStorage.getItem('admin_token')) window.location.href='/admin';
@@ -268,7 +268,7 @@ async function loginAdmin(){
   if(!email||!password){showErr('admin-error','⚠️ Please enter your email and password');return;}
   setBtn('admin-btn',true);
   try{
-    const r=await fetch(`${API}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const r=await fetch(API+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
     const d=await r.json();
     if(d.success&&d.user.role==='admin'){
       localStorage.setItem('admin_token',d.token);
@@ -289,7 +289,7 @@ async function loginClient(){
   if(!email||!password){showErr('client-error','⚠️ Please enter your email and password');return;}
   setBtn('client-btn',true);
   try{
-    const r=await fetch(`${API}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const r=await fetch(API+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
     const d=await r.json();
     if(d.success&&d.user.role==='client'){
       localStorage.setItem('client_token',d.token);
@@ -320,7 +320,7 @@ async function registerClient(){
   if(!name||!email||!password){showErr('client-error','⚠️ Please fill Name, Email and Password');return;}
   if(password.length<6){showErr('client-error','⚠️ Password must be at least 6 characters');return;}
   try{
-    const r=await fetch(`${API}/auth/register`,{method:'POST',headers:{'Content-Type':'application/json'},
+    const r=await fetch(API+'/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({name,email,password,phone,companyName:company,role:'client'})});
     const d=await r.json();
     if(d.success){

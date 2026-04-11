@@ -164,7 +164,7 @@ input:focus{background:#fff;border-color:#E8400C;box-shadow:0 0 0 3px rgba(232,6
 </div>
 
 <script>
-const API='/api';
+const API=(window.__API_URL||'')+'/api';
 window.onload=()=>{
   if(localStorage.getItem('client_token')) window.location.href='/client';
   spawn();
@@ -203,7 +203,7 @@ async function doLogin(){
   const btn=document.getElementById('login-btn');
   btn.disabled=true;btn.textContent='⏳  Please wait...';
   try{
-    const r=await fetch(`${API}/auth/login`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const r=await fetch(API+'/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email,password})});
     const d=await r.json();
     if(d.success&&d.user.role==='client'){
       localStorage.setItem('client_token',d.token);
@@ -230,7 +230,7 @@ async function doRegister(){
   const btn=document.getElementById('reg-btn');
   btn.disabled=true;btn.textContent='⏳  Creating account...';
   try{
-    const r=await fetch(`${API}/auth/register`,{method:'POST',headers:{'Content-Type':'application/json'},
+    const r=await fetch(API+'/auth/register',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify({name,email,password,phone,companyName:company,role:'client'})});
     const d=await r.json();
     if(d.success){

@@ -1040,7 +1040,7 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--br
 </div>
 
 <script>
-const API = '/api';
+const API = (window.__API_URL || '') + '/api';
 let token = localStorage.getItem('client_token');
 let currentUser = JSON.parse(localStorage.getItem('client_user') || '{}');
 let ordersPage = 1;
@@ -1059,12 +1059,15 @@ window.onload = async () => {
   if (!token) { window.location.href = '/client/login'; return; }
   // Verify token
   try {
-    const r = await fetch(`${API}/auth/me`, { headers: { Authorization: 'Bearer '+token } });
-    const d = await r.json();
-    if (!d.success) { logout(); return; }
-    currentUser = d.user;
-    localStorage.setItem('client_user', JSON.stringify(d.user));
-  } catch(e) {}
+    const r = await fetch(API + '/auth/me', { headers: { Authorization: 'Bearer '+token } });
+    if (r.ok) {
+      const d = await r.json();
+      if (d.success && d.user) {
+        currentUser = d.user;
+        localStorage.setItem('client_user', JSON.stringify(d.user));
+      }
+    }
+  } catch(e) { console.warn('Auth check failed:', e.message); }
   const av = document.getElementById('user-avatar');
   if (av && currentUser.name) av.textContent = currentUser.name[0].toUpperCase();
   loadWalletBalance();
